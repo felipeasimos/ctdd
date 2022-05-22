@@ -3,7 +3,7 @@
 ctdd_test(name1) {
   ctdd_check(1);
   ctdd_check(1);
-  ctdd_check(0);
+  ctdd_check(1);
   ctdd_check(1);
 }
 
