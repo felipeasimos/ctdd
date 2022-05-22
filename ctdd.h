@@ -112,9 +112,29 @@ static void test_suite()
   )
 
 // save results to csv
-#define ctdd_run_suite_and_save_to_csv(test_suite)\
+#define ctdd_run_suite_and_save_to_csv(test_suite, filename)\
   ctdd_run_suite(test_suite);\
   __ctdd_code_block(\
+    unsigned long millisecs = __ctdd_get_suite_struct(test_suite)->suite_time_millisecs;\
+    unsigned long num_tests = __ctdd_get_suite_struct(test_suite)->num_tests;\
+    unsigned long avg_millisecs = millisecs / num_tests;\
+    int status = __ctdd_get_suite_struct(test_suite)->status;\
+    FILE* file;\
+    int write_headers=1;\
+    if((file = fopen(filename, "r"))) {\
+      fclose(file);\
+      file = NULL;\
+      write_headers=0;\
+    }\
+    if(!( file = fopen(filename, write_headers ? "w" : "a"))) {\
+      fprintf(stdout, "couldn't open " #filename " \x1b[1;31m❌\x1b[0m\n");\
+      return 1;\
+    }\
+    if(write_headers) {\
+      fprintf(file, "name,total_time_milli,avg_time_milli,num_tests,status\n");\
+    }\
+    fprintf(file, "%s,%lu,%lu,%lu,%d\n", #test_suite, millisecs, avg_millisecs, num_tests, status);\
+    fclose(file);\
   )
 
 // assert condition
