@@ -16,6 +16,7 @@ typedef struct __CTDD_SUITE_VARS {
   // where error messages are temporarily stored
   char error_message[__CTDD_MESSAGE_LEN];
 
+  int has_runned;
   unsigned long num_tests;
   unsigned long test_time_millisecs;
   unsigned long suite_time_millisecs;
@@ -28,10 +29,6 @@ static struct __CTDD_SUITE_VARS __ctdd_suite_vars = {0};
 #define __ctdd_code_block(code_block) do {\
   code_block\
 } while(0)
-
-#define __ctdd_link_suite_field(test_suite, field, type)  type __ctdd_test_suite_##field_##test_suite = &__ctdd_suite_##field
-#define __ctdd_use_suite_field(test_suite, field, type) extern type __ctdd_test_suite_##field_##test_suite
-#define __ctdd_get_suite_field(test_suite, field) *__ctdd_test_suite_##field_##test_suite
 
 #define __ctdd_link_suite_struct(test_suite) __CTDD_SUITE_VARS* __ctdd_test_suite_struct_##test_suite = &__ctdd_suite_vars
 #define __ctdd_use_suite_struct(test_suite) extern __CTDD_SUITE_VARS* __ctdd_test_suite_struct_##test_suite
@@ -84,6 +81,7 @@ static void test_suite()
   __ctdd_code_block(\
     __ctdd_reset_struct(test_suite);\
     __ctdd_test_suite_func_##test_suite();\
+    __ctdd_get_suite_struct(test_suite)->has_runned = 1;\
     if(__ctdd_get_suite_struct(test_suite)->status == __ctdd_fail_code) {\
       fprintf(stdout, "\x1b[34m"#test_suite "\x1b[1;31m FAILED!\x1b[0m\n");\
       return 1;\
@@ -91,6 +89,32 @@ static void test_suite()
       unsigned long millisecs = __ctdd_get_suite_struct(test_suite)->suite_time_millisecs;\
       fprintf(stdout, "Test suite \x1b[34m"#test_suite "\x1b[1;32m PASSED!\x1b[0m %lu.%lu secs\n", millisecs/1000, millisecs%1000);\
     }\
+  )
+
+// runs with report
+#define ctdd_run_suite_with_report(test_suite)\
+  ctdd_run_suite(test_suite);\
+  __ctdd_code_block(\
+    unsigned long millisecs = __ctdd_get_suite_struct(test_suite)->suite_time_millisecs;\
+    unsigned long avg_millisecs = millisecs / __ctdd_get_suite_struct(test_suite)->num_tests;\
+    fprintf(\
+      stdout,\
+      "\x1b[34m"#test_suite"\x1b[0m report:\n"\
+        "\tstatus: %s\n"\
+        "\tnumber of tests: %lu\n"\
+        "\ttotal test time: %lu.%lu secs\n"\
+        "\taverage test time: %lu.%lu secs\n",\
+      __ctdd_get_suite_struct(test_suite)->status == __ctdd_fail_code ? "\x1b[1;31m❌\x1b[0m" : "\x1b[1;32m✅\x1b[0m",\
+      __ctdd_get_suite_struct(test_suite)->num_tests,\
+      millisecs/1000, millisecs%1000,\
+      avg_millisecs/1000, avg_millisecs%1000\
+      );\
+  )
+
+// save results to csv
+#define ctdd_run_suite_and_save_to_csv(test_suite)\
+  ctdd_run_suite(test_suite);\
+  __ctdd_code_block(\
   )
 
 // assert condition

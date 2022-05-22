@@ -29,7 +29,7 @@ ctdd_test_suite(test_module4) {
 }
 
 int main() {
-  ctdd_run_suite(test_module1);
+  ctdd_run_suite_with_report(test_module1);
   ctdd_run_suite(test_module2);
   ctdd_run_suite(test_module3);
   ctdd_run_suite(test_module4);
