@@ -7,6 +7,8 @@ A simple, single-header C unit test framework. Heavely inspired by [minunit](htt
 Just copy the `ctdd.h` file to wherever you want and include it in your test files.
 You can either put everything in the same file or spread test suites across `.c` files.
 
+Mind that additional header files to expose test suites and test cases functions are not needed.
+
 ## Example
 
 * `test_main.c`

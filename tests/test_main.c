@@ -3,7 +3,6 @@
 ctdd_test(name2) {
 
   ctdd_check(1);
-  ctdd_check(1);
 }
 
 ctdd_test_suite(test_module2) {
@@ -13,13 +12,10 @@ ctdd_test_suite(test_module2) {
 ctdd_test(name5) {
 
   ctdd_check(1);
-  ctdd_check(1);
 }
 
 ctdd_test(name6) {
 
-  ctdd_check(1);
-  ctdd_check(1);
   ctdd_check(1);
 }
 

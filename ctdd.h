@@ -16,7 +16,6 @@ typedef struct __CTDD_SUITE_VARS {
   // where error messages are temporarily stored
   char error_message[__CTDD_MESSAGE_LEN];
 
-  int has_runned;
   unsigned long num_tests;
   unsigned long test_time_millisecs;
   unsigned long suite_time_millisecs;
@@ -81,7 +80,6 @@ static void test_suite()
   __ctdd_code_block(\
     __ctdd_reset_struct(test_suite);\
     __ctdd_test_suite_func_##test_suite();\
-    __ctdd_get_suite_struct(test_suite)->has_runned = 1;\
     if(__ctdd_get_suite_struct(test_suite)->status == __ctdd_fail_code) {\
       fprintf(stdout, "\x1b[34m"#test_suite "\x1b[1;31m FAILED!\x1b[0m\n");\
       return 1;\
