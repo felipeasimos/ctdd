@@ -40,6 +40,12 @@ static struct __CTDD_SUITE_VARS __ctdd_suite_vars = {0};
 #define __ctdd_link_suite_func(test_suite) void (*__ctdd_test_suite_func_##test_suite)() = &test_suite
 #define __ctdd_use_suite_func(test_suite) extern void (*__ctdd_test_suite_func_##test_suite)()
 
+#define __ctdd_reset_struct(test_suite) __ctdd_code_block(\
+    __ctdd_get_suite_struct(test_suite)->num_tests = 0;\
+    __ctdd_get_suite_struct(test_suite)->test_time_millisecs = 0;\
+    __ctdd_get_suite_struct(test_suite)->suite_time_millisecs = 0;\
+  )
+
 // define a single test case, which calls ctdd_assert, ctdd_check and ctdd_fail
 #define ctdd_test(test) static void test()
 
@@ -59,14 +65,15 @@ static void test_suite()
     test();\
     gettimeofday(&stop, NULL);\
     if(__ctdd_suite_vars.status == __ctdd_fail_code) {\
-      fprintf(stderr, "\x1b[31m%lu\x1b[1m ❌\x1b[0m\n%s\n", __ctdd_suite_vars.num_tests, __ctdd_suite_vars.error_message);\
+      fprintf(stdout, "\x1b[31m%lu\x1b[1m ❌\x1b[0m\n%s\n", __ctdd_suite_vars.num_tests, __ctdd_suite_vars.error_message);\
       return;\
     } else {\
       unsigned long secs = stop.tv_sec - start.tv_sec;\
       unsigned long millisecs = stop.tv_usec - start.tv_usec;\
-      fprintf(stderr, "\x1b[32m%lu\x1b[1m ✅\x1b[0m %lu.%lu secs\n", __ctdd_suite_vars.num_tests, secs, millisecs);\
+      fprintf(stdout, "\x1b[32m%lu\x1b[1m ✅\x1b[0m %lu.%lu secs\n", __ctdd_suite_vars.num_tests, secs, millisecs);\
       __ctdd_suite_vars.num_tests++;\
       __ctdd_suite_vars.test_time_millisecs = secs * 10e6 + millisecs;\
+      __ctdd_suite_vars.suite_time_millisecs += __ctdd_suite_vars.test_time_millisecs;\
     }\
   )
 
@@ -75,11 +82,14 @@ static void test_suite()
   __ctdd_use_suite_struct(test_suite);\
   __ctdd_use_suite_func(test_suite);\
   __ctdd_code_block(\
-    fprintf(stderr, "%s\n", #test_suite);\
+    __ctdd_reset_struct(test_suite);\
     __ctdd_test_suite_func_##test_suite();\
     if(__ctdd_get_suite_struct(test_suite)->status == __ctdd_fail_code) {\
-      fprintf(stderr, "fail at %s\n", #test_suite);\
+      fprintf(stdout, "\x1b[34m"#test_suite "\x1b[1;31m FAILED!\x1b[0m\n");\
       return 1;\
+    } else {\
+      unsigned long millisecs = __ctdd_get_suite_struct(test_suite)->suite_time_millisecs;\
+      fprintf(stdout, "Test suite \x1b[34m"#test_suite "\x1b[1;32m PASSED!\x1b[0m %lu.%lu secs\n", millisecs/1000, millisecs%1000);\
     }\
   )
 
@@ -100,7 +110,7 @@ static void test_suite()
       __ctdd_suite_vars.status = __ctdd_fail_code;\
       return;\
     } else {\
-      fprintf(stderr, ".");\
+      fprintf(stdout, ".");\
     }\
   )
 
