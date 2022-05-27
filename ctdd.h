@@ -61,12 +61,12 @@ static void test_suite()
     test();\
     gettimeofday(&stop, NULL);\
     if(__ctdd_suite_vars.status == __ctdd_fail_code) {\
-      fprintf(stdout, "\x1b[31m%lu\x1b[1m ❌\x1b[0m\n%s\n", __ctdd_suite_vars.num_tests, __ctdd_suite_vars.error_message);\
+      fprintf(stderr, "\x1b[31m%lu\x1b[1m ❌\x1b[0m\n%s\n", __ctdd_suite_vars.num_tests, __ctdd_suite_vars.error_message);\
       return;\
     } else {\
       unsigned long secs = stop.tv_sec - start.tv_sec;\
       unsigned long millisecs = stop.tv_usec - start.tv_usec;\
-      fprintf(stdout, "\x1b[32m%lu\x1b[1m ✅\x1b[0m %lu.%lu secs\n", __ctdd_suite_vars.num_tests, secs, millisecs);\
+      fprintf(stderr, "\x1b[32m%lu\x1b[1m ✅\x1b[0m %lu.%lu secs\n", __ctdd_suite_vars.num_tests, secs, millisecs);\
       __ctdd_suite_vars.num_tests++;\
       __ctdd_suite_vars.test_time_millisecs = secs * 10e6 + millisecs;\
       __ctdd_suite_vars.suite_time_millisecs += __ctdd_suite_vars.test_time_millisecs;\
@@ -81,11 +81,11 @@ static void test_suite()
     __ctdd_reset_struct(test_suite);\
     __ctdd_test_suite_func_##test_suite();\
     if(__ctdd_get_suite_struct(test_suite)->status == __ctdd_fail_code) {\
-      fprintf(stdout, "\x1b[34m"#test_suite "\x1b[1;31m FAILED!\x1b[0m\n");\
+      fprintf(stderr, "\x1b[34m"#test_suite "\x1b[1;31m FAILED!\x1b[0m\n");\
       return 1;\
     } else {\
       unsigned long millisecs = __ctdd_get_suite_struct(test_suite)->suite_time_millisecs;\
-      fprintf(stdout, "Test suite \x1b[34m"#test_suite "\x1b[1;32m PASSED!\x1b[0m %lu.%lu secs\n", millisecs/10000, millisecs%10000);\
+      fprintf(stderr, "Test suite \x1b[34m"#test_suite "\x1b[1;32m PASSED!\x1b[0m %lu.%lu secs\n", millisecs/10000, millisecs%10000);\
     }\
   )
 
@@ -96,7 +96,7 @@ static void test_suite()
     unsigned long millisecs = __ctdd_get_suite_struct(test_suite)->suite_time_millisecs;\
     unsigned long avg_millisecs = millisecs / __ctdd_get_suite_struct(test_suite)->num_tests;\
     fprintf(\
-      stdout,\
+      stderr,\
       "\x1b[34m"#test_suite"\x1b[0m report:\n"\
         "\tstatus: %s\n"\
         "\tnumber of tests: %lu\n"\
@@ -124,7 +124,7 @@ static void test_suite()
       write_headers=0;\
     }\
     if(!( file = fopen(filename, write_headers ? "w" : "a"))) {\
-      fprintf(stdout, "couldn't open " #filename " \x1b[1;31m❌\x1b[0m\n");\
+      fprintf(stderr, "couldn't open " #filename " \x1b[1;31m❌\x1b[0m\n");\
       return 1;\
     }\
     if(write_headers) {\
@@ -150,7 +150,7 @@ static void test_suite()
       __ctdd_suite_vars.status = __ctdd_fail_code;\
       return;\
     } else {\
-      fprintf(stdout, ".");\
+      fprintf(stderr, ".");\
     }\
   )
 // assert check
