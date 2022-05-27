@@ -85,7 +85,7 @@ static void test_suite()
       return 1;\
     } else {\
       unsigned long millisecs = __ctdd_get_suite_struct(test_suite)->suite_time_millisecs;\
-      fprintf(stdout, "Test suite \x1b[34m"#test_suite "\x1b[1;32m PASSED!\x1b[0m %lu.%lu secs\n", millisecs/1000, millisecs%1000);\
+      fprintf(stdout, "Test suite \x1b[34m"#test_suite "\x1b[1;32m PASSED!\x1b[0m %lu.%lu secs\n", millisecs/10000, millisecs%10000);\
     }\
   )
 
@@ -104,11 +104,10 @@ static void test_suite()
         "\taverage test time: %lu.%lu secs\n",\
       __ctdd_get_suite_struct(test_suite)->status == __ctdd_fail_code ? "\x1b[1;31m❌\x1b[0m" : "\x1b[1;32m✅\x1b[0m",\
       __ctdd_get_suite_struct(test_suite)->num_tests,\
-      millisecs/1000, millisecs%1000,\
-      avg_millisecs/1000, avg_millisecs%1000\
+      millisecs/10000, millisecs%10000,\
+      avg_millisecs/10000, avg_millisecs%10000\
       );\
   )
-
 // save results to csv
 #define ctdd_run_suite_and_save_to_csv(test_suite, filename)\
   ctdd_run_suite(test_suite);\
@@ -134,7 +133,6 @@ static void test_suite()
     fprintf(file, "%s,%lu,%lu,%lu,%d\n", #test_suite, millisecs, avg_millisecs, num_tests, status);\
     fclose(file);\
   )
-
 // assert condition
 #define ctdd_assert(test, message) __ctdd_code_block(\
     if(!(test)) {\
@@ -155,11 +153,8 @@ static void test_suite()
       fprintf(stdout, ".");\
     }\
   )
-
 // assert check
 #define ctdd_check(test) ctdd_assert(test, #test)
-
 // just fail
 #define ctdd_fail(message) ctdd_assert(0, message)
-
 #endif
