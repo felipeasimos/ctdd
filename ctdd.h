@@ -24,6 +24,9 @@ typedef struct __CTDD_SUITE_VARS {
 
 static struct __CTDD_SUITE_VARS __ctdd_suite_vars = {0};
 
+static void (*__ctdd_setup)(void) = NULL;
+static void (*__ctdd_teardown)(void) = NULL;
+
 // define multi statement macro more easily
 #define __ctdd_code_block(code_block) do {\
   code_block\
@@ -33,7 +36,7 @@ static struct __CTDD_SUITE_VARS __ctdd_suite_vars = {0};
 #define __ctdd_use_suite_struct(test_suite) extern __CTDD_SUITE_VARS* __ctdd_test_suite_struct_##test_suite
 #define __ctdd_get_suite_struct(test_suite) __ctdd_test_suite_struct_##test_suite
 
-#define __ctdd_link_suite_func(test_suite) void (*__ctdd_test_suite_func_##test_suite)() = &test_suite
+#define __ctdd_link_suite_func(test_suite) void (*__ctdd_test_suite_func_##test_suite)() = &__ctdd_test_suite_wrapper_##test_suite
 #define __ctdd_use_suite_func(test_suite) extern void (*__ctdd_test_suite_func_##test_suite)()
 
 #define __ctdd_reset_struct(test_suite) __ctdd_code_block(\
@@ -43,14 +46,32 @@ static struct __CTDD_SUITE_VARS __ctdd_suite_vars = {0};
   )
 
 // define a single test case, which calls ctdd_assert, ctdd_check and ctdd_fail
-#define ctdd_test(test) static void test()
+#define ctdd_test(test)\
+static void test();\
+static void __ctdd_test_case_wrapper_##test() {\
+  if(__ctdd_setup) __ctdd_setup();\
+  test();\
+  if(__ctdd_teardown) __ctdd_teardown();\
+}\
+static void test()
 
 // define a test suite, which calls ctdd_run_test for each test case
 #define ctdd_test_suite(test_suite)\
 static void test_suite();\
+static void __ctdd_test_suite_wrapper_##test_suite() {\
+  test_suite();\
+  __ctdd_setup = NULL;\
+  __ctdd_teardown = NULL;\
+}\
 __ctdd_link_suite_struct(test_suite);\
 __ctdd_link_suite_func(test_suite);\
 static void test_suite()
+
+// set setup and teardown functions for this test suite
+#define ctdd_configure(setup, teardown) __ctdd_code_block(\
+      __ctdd_setup = setup;\
+      __ctdd_teardown = teardown;\
+    )
 
 // runs a single test case
 #define ctdd_run_test(test) __ctdd_code_block(\
@@ -58,7 +79,7 @@ static void test_suite()
     struct timeval start;\
     struct timeval stop;\
     gettimeofday(&start, NULL);\
-    test();\
+    __ctdd_test_case_wrapper_##test();\
     gettimeofday(&stop, NULL);\
     if(__ctdd_suite_vars.status == __ctdd_fail_code) {\
       fprintf(stderr, "\x1b[31m%lu\x1b[1m ❌\x1b[0m\n%s\n", __ctdd_suite_vars.num_tests, __ctdd_suite_vars.error_message);\
