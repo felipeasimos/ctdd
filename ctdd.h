@@ -17,8 +17,8 @@ typedef struct __CTDD_SUITE_VARS {
   char error_message[__CTDD_MESSAGE_LEN];
 
   unsigned long num_tests;
-  unsigned long test_time_millisecs;
-  unsigned long suite_time_millisecs;
+  unsigned long test_time_microsecs;
+  unsigned long suite_time_microsecs;
   int status;
 } __CTDD_SUITE_VARS;
 
@@ -41,16 +41,19 @@ static void (*__ctdd_teardown)(void) = NULL;
 
 #define __ctdd_reset_struct(test_suite) __ctdd_code_block(\
     __ctdd_get_suite_struct(test_suite)->num_tests = 0;\
-    __ctdd_get_suite_struct(test_suite)->test_time_millisecs = 0;\
-    __ctdd_get_suite_struct(test_suite)->suite_time_millisecs = 0;\
+    __ctdd_get_suite_struct(test_suite)->test_time_microsecs = 0;\
+    __ctdd_get_suite_struct(test_suite)->suite_time_microsecs = 0;\
   )
 
 // define a single test case, which calls ctdd_assert, ctdd_check and ctdd_fail
 #define ctdd_test(test)\
 static void test();\
-static void __ctdd_test_case_wrapper_##test() {\
+static void __ctdd_test_case_wrapper_##test(struct timeval* start, struct timeval* stop) {\
   if(__ctdd_setup) __ctdd_setup();\
+  fprintf(stderr, "\t|");\
+  gettimeofday(start, NULL);\
   test();\
+  gettimeofday(stop, NULL);\
   if(__ctdd_teardown) __ctdd_teardown();\
 }\
 static void test()
@@ -60,8 +63,6 @@ static void test()
 static void test_suite();\
 static void __ctdd_test_suite_wrapper_##test_suite() {\
   test_suite();\
-  __ctdd_setup = NULL;\
-  __ctdd_teardown = NULL;\
 }\
 __ctdd_link_suite_struct(test_suite);\
 __ctdd_link_suite_func(test_suite);\
@@ -78,19 +79,17 @@ static void test_suite()
     __ctdd_suite_vars.status = __ctdd_success_code;\
     struct timeval start;\
     struct timeval stop;\
-    gettimeofday(&start, NULL);\
-    __ctdd_test_case_wrapper_##test();\
-    gettimeofday(&stop, NULL);\
+    __ctdd_test_case_wrapper_##test(&start, &stop);\
     if(__ctdd_suite_vars.status == __ctdd_fail_code) {\
-      fprintf(stderr, "\x1b[31m%lu\x1b[1m ❌\x1b[0m\n%s\n", __ctdd_suite_vars.num_tests, __ctdd_suite_vars.error_message);\
+      fprintf(stderr, "\x1b[31m%lu %s\x1b[1m ■\x1b[0m\n%s\n", __ctdd_suite_vars.num_tests, #test, __ctdd_suite_vars.error_message);\
       return;\
     } else {\
       unsigned long secs = stop.tv_sec - start.tv_sec;\
-      unsigned long millisecs = stop.tv_usec - start.tv_usec;\
-      fprintf(stderr, "\x1b[32m%lu\x1b[1m ✅\x1b[0m %lu.%lu secs\n", __ctdd_suite_vars.num_tests, secs, millisecs);\
+      unsigned long microseconds = stop.tv_usec - start.tv_usec;\
+      fprintf(stderr, "\x1b[32m%lu %s\x1b[1m ■\x1b[0m %lu.%06lu secs\n", __ctdd_suite_vars.num_tests, #test, secs, microseconds);\
       __ctdd_suite_vars.num_tests++;\
-      __ctdd_suite_vars.test_time_millisecs = secs * 10e6 + millisecs;\
-      __ctdd_suite_vars.suite_time_millisecs += __ctdd_suite_vars.test_time_millisecs;\
+      __ctdd_suite_vars.test_time_microsecs = secs * 10e6 + microseconds;\
+      __ctdd_suite_vars.suite_time_microsecs += __ctdd_suite_vars.test_time_microsecs;\
     }\
   )
 
@@ -102,11 +101,11 @@ static void test_suite()
     __ctdd_reset_struct(test_suite);\
     __ctdd_test_suite_func_##test_suite();\
     if(__ctdd_get_suite_struct(test_suite)->status == __ctdd_fail_code) {\
-      fprintf(stderr, "\x1b[34m"#test_suite "\x1b[1;31m FAILED!\x1b[0m\n");\
+      fprintf(stderr, "Test suite \x1b[34m" #test_suite "\x1b[1;31m FAILED!\x1b[0m\n");\
       return 1;\
     } else {\
-      unsigned long millisecs = __ctdd_get_suite_struct(test_suite)->suite_time_millisecs;\
-      fprintf(stderr, "Test suite \x1b[34m"#test_suite "\x1b[1;32m PASSED!\x1b[0m %lu.%lu secs\n", millisecs/10000, millisecs%10000);\
+      unsigned long microsecs = __ctdd_get_suite_struct(test_suite)->suite_time_microsecs;\
+      fprintf(stderr, "Test suite \x1b[34m"#test_suite "\x1b[1;32m PASSED\x1b[0m %lu.%06lu secs\n", microsecs/(unsigned long)10e6, microsecs%(unsigned long)10e6);\
     }\
   )
 
@@ -114,8 +113,8 @@ static void test_suite()
 #define ctdd_run_suite_with_report(test_suite)\
   ctdd_run_suite(test_suite);\
   __ctdd_code_block(\
-    unsigned long millisecs = __ctdd_get_suite_struct(test_suite)->suite_time_millisecs;\
-    unsigned long avg_millisecs = millisecs / __ctdd_get_suite_struct(test_suite)->num_tests;\
+    unsigned long microsecs = __ctdd_get_suite_struct(test_suite)->suite_time_microsecs;\
+    unsigned long avg_microsecs = microsecs / __ctdd_get_suite_struct(test_suite)->num_tests;\
     fprintf(\
       stderr,\
       "\x1b[34m"#test_suite"\x1b[0m report:\n"\
@@ -123,19 +122,19 @@ static void test_suite()
         "\tnumber of tests: %lu\n"\
         "\ttotal test time: %lu.%lu secs\n"\
         "\taverage test time: %lu.%lu secs\n",\
-      __ctdd_get_suite_struct(test_suite)->status == __ctdd_fail_code ? "\x1b[1;31m❌\x1b[0m" : "\x1b[1;32m✅\x1b[0m",\
+      __ctdd_get_suite_struct(test_suite)->status == __ctdd_fail_code ? "\x1b[1;31m ■ \x1b[0m" : "\x1b[1;32m ■ \x1b[0m",\
       __ctdd_get_suite_struct(test_suite)->num_tests,\
-      millisecs/10000, millisecs%10000,\
-      avg_millisecs/10000, avg_millisecs%10000\
+      microsecs/(unsigned long)10e6, microsecs%(unsigned long)10e6,\
+      avg_microsecs/(unsigned long)10e6, avg_microsecs%(unsigned long)10e6\
       );\
   )
 // save results to csv
 #define ctdd_run_suite_and_save_to_csv(test_suite, filename)\
   ctdd_run_suite(test_suite);\
   __ctdd_code_block(\
-    unsigned long millisecs = __ctdd_get_suite_struct(test_suite)->suite_time_millisecs;\
+    unsigned long microsecs = __ctdd_get_suite_struct(test_suite)->suite_time_microsecs;\
     unsigned long num_tests = __ctdd_get_suite_struct(test_suite)->num_tests;\
-    unsigned long avg_millisecs = millisecs / num_tests;\
+    unsigned long avg_microsecs = microsecs / num_tests;\
     int status = __ctdd_get_suite_struct(test_suite)->status;\
     FILE* file;\
     int write_headers=1;\
@@ -145,13 +144,13 @@ static void test_suite()
       write_headers=0;\
     }\
     if(!( file = fopen(filename, write_headers ? "w" : "a"))) {\
-      fprintf(stderr, "couldn't open " #filename " \x1b[1;31m❌\x1b[0m\n");\
+      fprintf(stderr, "couldn't open " #filename " \x1b[1;31m■\x1b[0m\n");\
       return 1;\
     }\
     if(write_headers) {\
-      fprintf(file, "name,total_time_milli,avg_time_milli,num_tests,status\n");\
+      fprintf(file, "name,total_time_micro,avg_time_micro,num_tests,status\n");\
     }\
-    fprintf(file, "%s,%lu,%lu,%lu,%d\n", #test_suite, millisecs, avg_millisecs, num_tests, status);\
+    fprintf(file, "%s,%lu,%lu,%lu,%d\n", #test_suite, microsecs, avg_microsecs, num_tests, status);\
     fclose(file);\
   )
 // assert condition
@@ -160,7 +159,7 @@ static void test_suite()
       snprintf(\
           __ctdd_suite_vars.error_message,\
           __CTDD_MESSAGE_LEN,\
-          "Test case '%s' \x1b[31mFAILED ❌\x1b[0m\n"\
+          "Test case \x1b[31m%s \x1b[1;31mFAILED ■\x1b[0m\n"\
             "\tFile: \x1b[33m%s\x1b[0m\n"\
             "\tLine: \x1b[33m%d\x1b[0m\n"\
             "\tExpression: \x1b[33m%s\x1b[0m",\
