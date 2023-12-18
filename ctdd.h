@@ -26,6 +26,9 @@ static struct __CTDD_SUITE_VARS __ctdd_suite_vars = {0};
 
 static void (*__ctdd_setup)(void) = NULL;
 static void (*__ctdd_teardown)(void) = NULL;
+static int __ctdd_quiet = 0;
+
+#define ctdd_set_quiet(value) __ctdd_quiet = !!value
 
 // define multi statement macro more easily
 #define __ctdd_code_block(code_block) do {\
@@ -50,7 +53,7 @@ static void (*__ctdd_teardown)(void) = NULL;
 static void test();\
 static void __ctdd_test_case_wrapper_##test(struct timeval* start, struct timeval* stop) {\
   if(__ctdd_setup) __ctdd_setup();\
-  fprintf(stderr, "\t|");\
+  if(!__ctdd_quiet) fprintf(stderr, "\t|");\
   gettimeofday(start, NULL);\
   test();\
   gettimeofday(stop, NULL);\
@@ -86,7 +89,7 @@ static void test_suite()
     } else {\
       unsigned long secs = stop.tv_sec - start.tv_sec;\
       unsigned long microseconds = stop.tv_usec - start.tv_usec;\
-      fprintf(stderr, "\x1b[32m%lu %s\x1b[1m ■\x1b[0m %lu.%06lu secs\n", __ctdd_suite_vars.num_tests, #test, secs, microseconds);\
+      if(!__ctdd_quiet) fprintf(stderr, "\x1b[32m%lu %s\x1b[1m ■\x1b[0m %lu.%06lu secs\n", __ctdd_suite_vars.num_tests, #test, secs, microseconds);\
       __ctdd_suite_vars.num_tests++;\
       __ctdd_suite_vars.test_time_microsecs = secs * 10e6 + microseconds;\
       __ctdd_suite_vars.suite_time_microsecs += __ctdd_suite_vars.test_time_microsecs;\
@@ -105,7 +108,7 @@ static void test_suite()
       return 1;\
     } else {\
       unsigned long microsecs = __ctdd_get_suite_struct(test_suite)->suite_time_microsecs;\
-      fprintf(stderr, "Test suite \x1b[34m"#test_suite "\x1b[1;32m PASSED\x1b[0m %lu.%06lu secs\n", microsecs/(unsigned long)10e6, microsecs%(unsigned long)10e6);\
+      if(!__ctdd_quiet) fprintf(stderr, "Test suite \x1b[34m"#test_suite "\x1b[1;32m PASSED\x1b[0m %lu.%06lu secs\n", microsecs/(unsigned long)10e6, microsecs%(unsigned long)10e6);\
     }\
   )
 
@@ -115,7 +118,7 @@ static void test_suite()
   __ctdd_code_block(\
     unsigned long microsecs = __ctdd_get_suite_struct(test_suite)->suite_time_microsecs;\
     unsigned long avg_microsecs = microsecs / __ctdd_get_suite_struct(test_suite)->num_tests;\
-    fprintf(\
+    if(!__ctdd_quiet || __ctdd_get_suite_struct(test_suite)->status == __ctdd_fail_code) fprintf(\
       stderr,\
       "\x1b[34m"#test_suite"\x1b[0m report:\n"\
         "\tstatus: %s\n"\
@@ -170,7 +173,7 @@ static void test_suite()
       __ctdd_suite_vars.status = __ctdd_fail_code;\
       return;\
     } else {\
-      fprintf(stderr, ".");\
+      if(!__ctdd_quiet) fprintf(stderr, ".");\
     }\
   )
 // assert check
