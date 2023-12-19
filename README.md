@@ -1,4 +1,4 @@
-# CTDD
+# ctdd
 
 A simple, single-header C unit test framework. Heavely inspired by [minunit](https://github.com/siu/minunit).
 

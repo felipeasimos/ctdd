@@ -5,7 +5,25 @@
 // To use this, checkout the examples at tests/
 
 #include <stdio.h>
-#include <sys/time.h>
+#if defined(__has_include)
+#if __has_include(<sys/time.h>)
+  #include <sys/time.h>
+  static unsigned long __ctdd_get_current_microseconds() {
+    static struct timeval time;
+    gettimeofday(&time, NULL);
+    return time.tv_sec * 1000000 + time.tv_usec;
+  }
+#elif __has_include(<windows.h>)
+  #include <windows.h>
+  static unsigned long __ctdd_get_current_microseconds() {
+    LARGE_INTEGER li;
+    QueryPerformanceFrequency(&li);
+    double frequency = ((double)li.QuadPart)/1000000.0;
+    QueryPerformanceCounter(&li);
+    return (unsigned long)(li.QuadPart/frequency);
+  }
+#endif
+#endif
 
 #define __CTDD_MESSAGE_LEN 1024
 
@@ -24,8 +42,8 @@ typedef struct __CTDD_SUITE_VARS {
 
 static struct __CTDD_SUITE_VARS __ctdd_suite_vars = {0};
 
-static void (*__ctdd_setup)(void) = NULL;
-static void (*__ctdd_teardown)(void) = NULL;
+static void (*__ctdd_setup)() = NULL;
+static void (*__ctdd_teardown)() = NULL;
 static int __ctdd_quiet = 0;
 
 #define ctdd_set_quiet(value) __ctdd_quiet = !!value
@@ -51,12 +69,12 @@ static int __ctdd_quiet = 0;
 // define a single test case, which calls ctdd_assert, ctdd_check and ctdd_fail
 #define ctdd_test(test)\
 static void test();\
-static void __ctdd_test_case_wrapper_##test(struct timeval* start, struct timeval* stop) {\
+static void __ctdd_test_case_wrapper_##test(unsigned long* start, unsigned long* stop) {\
   if(__ctdd_setup) __ctdd_setup();\
   if(!__ctdd_quiet) fprintf(stderr, "\t|");\
-  gettimeofday(start, NULL);\
+  *start = __ctdd_get_current_microseconds();\
   test();\
-  gettimeofday(stop, NULL);\
+  *stop = __ctdd_get_current_microseconds();\
   if(__ctdd_teardown) __ctdd_teardown();\
 }\
 static void test()
@@ -80,18 +98,19 @@ static void test_suite()
 // runs a single test case
 #define ctdd_run_test(test) __ctdd_code_block(\
     __ctdd_suite_vars.status = __ctdd_success_code;\
-    struct timeval start;\
-    struct timeval stop;\
-    __ctdd_test_case_wrapper_##test(&start, &stop);\
+    unsigned long start_microsecs = 0;\
+    unsigned long stop_microsecs = 0;\
+    __ctdd_test_case_wrapper_##test(&start_microsecs, &stop_microsecs);\
     if(__ctdd_suite_vars.status == __ctdd_fail_code) {\
       fprintf(stderr, "\x1b[31m%lu %s\x1b[1m ■\x1b[0m\n%s\n", __ctdd_suite_vars.num_tests, #test, __ctdd_suite_vars.error_message);\
       return;\
     } else {\
-      unsigned long secs = stop.tv_sec - start.tv_sec;\
-      unsigned long microseconds = stop.tv_usec - start.tv_usec;\
+      unsigned long microseconds = stop_microsecs - start_microsecs;\
+      unsigned long secs = microseconds / 1000000;\
+      microseconds = microseconds % 1000000;\
       if(!__ctdd_quiet) fprintf(stderr, "\x1b[32m%lu %s\x1b[1m ■\x1b[0m %lu.%06lu secs\n", __ctdd_suite_vars.num_tests, #test, secs, microseconds);\
       __ctdd_suite_vars.num_tests++;\
-      __ctdd_suite_vars.test_time_microsecs = secs * 10e6 + microseconds;\
+      __ctdd_suite_vars.test_time_microsecs = secs * 1000000 + microseconds;\
       __ctdd_suite_vars.suite_time_microsecs += __ctdd_suite_vars.test_time_microsecs;\
     }\
   )
